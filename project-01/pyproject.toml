@@ -1,0 +1,22 @@
+[project]
+name = "project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "nitinmehra09", email = "email" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "groq>=1.7.0",
+    "pydentic>=0.0.1.dev3",
+    "pypdf>=6.19.0",
+    "python-dotenv>=1.2.3",
+]
+
+[project.scripts]
+project = "project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
