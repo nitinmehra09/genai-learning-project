@@ -126,7 +126,7 @@ Learn → Experiment → Break → Debug → Build → Understand → Repeat
 ### 🟢 Beginner
 
 ```text
-├── 🐍 Python AI Experiments
+├── 🐍 Python AI Experiments 
 ├── 🤖 Simple AI Applications
 ├── 💬 LLM API Experiments
 ├── ✨ Prompt Engineering
@@ -226,10 +226,6 @@ RAG                  █████░░░░░░░░░░  Exploring
 AI Agents             ███░░░░░░░░░░░░  Starting
 AI Engineering        ██░░░░░░░░░░░░░  Building
 ```
-
-> Progress is intentionally imperfect.
-> **The goal isn't to finish the roadmap. The goal is to keep moving.**
-
 ---
 
 # 🔬 My Learning Philosophy
