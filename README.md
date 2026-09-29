@@ -226,6 +226,10 @@ RAG                  █████░░░░░░░░░░  Exploring
 AI Agents             ███░░░░░░░░░░░░  Starting
 AI Engineering        ██░░░░░░░░░░░░░  Building
 ```
+
+> Progress is intentionally imperfect.
+> **The goal isn't to finish the roadmap. The goal is to keep moving.**
+
 ---
 
 # 🔬 My Learning Philosophy
