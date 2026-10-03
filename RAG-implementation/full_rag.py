@@ -1,70 +1,126 @@
-import os 
-from pathlib import Path
+import os
 from dotenv import load_dotenv
-from groq import Groq
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
-import numpy as np
+from groq import Groq
+
+# get api keys
 
 load_dotenv()
-my_api_key = os.getenv("GROQ_API_KEY")
+qdrant_api = os.getenv("QDRANT_API_KEY")
+groq_api = os.getenv("GROQ_API_KEY")
+qdrant_url = os.getenv("QDRANT_URL")
 
-if not my_api_key:
-    raise ValueError("Api key is not found")
+#connect to qdrant
+client = QdrantClient(
+    url = qdrant_url,
+    api_key = qdrant_api
+)
+
+
+# create new collection
+collection_name = "knowleage_base"
+embadding_size = 384
+
+if client.collection_exists(collection_name):
+    print(f"Deleting collection {collection_name}")
+    client.delete_collection(collection_name)
+
+client.create_collection(
+    collection_name=collection_name,
+    vectors_config = VectorParams(
+        size=embadding_size,
+        distance=Distance.COSINE
+    ),
+)
+print(f"Created collection: {collection_name}")
+print(f"Vector size: {embadding_size}")
+print("Distance: COSINE")
+
+# LOAD OUR KNOWLEDGE
+with open("requrment.txt" , "r") as f:
+    documents = [
+        line.strip()
+        for line in f
+        if line.strip()
+    ]
+
+print(f"Loaded {len(documents)} documents")
+
+#creat embedding 
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-groqmodel = "openai/gpt-oss-120b"
+embaddings = model.encode(documents) #here embedding is array
 
-client = Groq(api_key=my_api_key)
-
-documents = [
-    "Employees receive 24 days of paid leave per year.",
-   
-    "Employees work from the office on Tuesday, Wednesday and Thursday. "
-    "Monday and Friday are optional work-from-home days.",
-   
-    "Employees receive Rs 3000 per month for gym reimbursement.",
-   
-    "Employees can claim Rs 2000 per month for home internet.",
-   
-    "Employees have a 90 day notice period."
-]
-
-document_embeddings = model.encode(documents)
-
-def cosine_similarity(a,b):
-    return np.dot(a,b)/(
-        np.linalg.norm(a) * np.linalg.norm(b)
+# create qdrant points
+points = []
+for i,embadding in enumerate(embaddings):
+    point = PointStruct(
+        id = i+1,
+        vector = embadding.tolist(),
+        payload = {
+            "text" : documents[i]
+        }
     )
+    points.append(point)
 
-def retrieval(qembedding):
-    scores = []
-    for i , document in enumerate(document_embeddings):
-        score = cosine_similarity(qembedding,document)
-        scores.append((score,documents[i]))
-    scores.sort(reverse=True)
-    return scores[0];
+# upload this point on qdrant 
+
+client.upsert(
+    collection_name = collection_name,
+    points = points
+)
+
+# searching
+def searching(query , top_k = 3):
+    query_vector = model.encode(query).tolist()
+    result = client.query_points(
+        collection_name=collection_name,
+        query = query_vector,
+        limit = top_k,
+        with_payload = True
+    ).points
+    return result 
+
+#connect to groq
+groq_client = Groq(api_key=groq_api)
 
 def ask_llm(question,context):
-    sys_prompt=f"""answer in one line only. Answer only based on this context. do not hallucinate. Context: {context}"""
-    sys_message = {
-        "role":"system",
-        "content":sys_prompt
-    }
-    message = {
-        "role":"user",
-        "content":question
-    }
-    messages = [sys_message,message]
-    
-    response = client.chat.completions.create(
-        messages=messages,                               
-        model=groqmodel
+    prompt = f"""
+    Answer the question using only the information provided below.
+
+    Context:
+    {context}
+
+    Question:
+    {question}
+
+    If the answer is not present in the context, say:
+    "I don't know based on the provided information.
+    """ 
+    groq_model = "openai/gpt-oss-120b"
+
+    response = groq_client.chat.completions.create(
+        model = groq_model,
+        messages = [
+            {
+                "role" : "user",
+                "content" : prompt
+            }
+        ]
     )
+
     answer = response.choices[0].message.content
     return answer
 
-query = "How much vacation do I get?"
-qembedding=model.encode(query)
-score,context=retrieval(qembedding)
-answer=ask_llm(query,context)
-print(answer)
+question = "How many vacation days do i get?"
+results = searching(question,top_k=3)
+
+context = "\n".join(
+    result.payload["text"]
+    for result in results
+)
+
+ans = ask_llm(question,context)
+print(ans)
